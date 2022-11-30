@@ -1,0 +1,6 @@
+require:
+  - rubocop-jekyll
+  - rubocop-performance
+  - rubocop-rake
+inherit_gem:
+  rubocop-jekyll: .rubocop.yml

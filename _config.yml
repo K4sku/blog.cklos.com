@@ -1,0 +1,28 @@
+title: Cezary Kłos's Blog
+email: blog@cklos.com
+author: Cezary Kłos
+description: >- # this means to ignore newlines until "baseurl:"
+  Cezary Kłos's Blog
+baseurl: "" # the subpath of your site, e.g. /blog
+url: "https://blog.cklos.com" # the base hostname & protocol for your site, e.g. http://example.com
+github_username:  k4sku
+
+permalink: /:year/:month/:day/:title/
+
+show_excerpts: true
+theme: minima
+minima:
+  date_format: "%Y-%m-%d"
+
+plugins:
+  - jekyll-feed
+  - jekyll-spaceship
+
+exclude:
+  - .idea/
+  - README.md
+  - LICENSE
+  - Gemfile
+  - Rakefile
+  - Gemfile.lock
+
