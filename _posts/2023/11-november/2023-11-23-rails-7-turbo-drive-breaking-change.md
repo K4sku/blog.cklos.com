@@ -7,7 +7,8 @@ You might encounter it when upgrading to rails >= 7.
 
 >There is a breaking change in Rails 7: Invalid form submissions have to return a 422 status code for Turbo Drive to replace the <body> of the page and display the form errors. The alias for the 422 status code in Rails is :unprocessable_entity. That’s why, since Ruby on Rails 7, the scaffold generator adds status: :unprocessable_entity to #create and #update actions when the resource couldn’t be saved due to an invalid form submission.
 
-It is all about status in `else`
+It is all about adding `status: :unprocessable_entity` in `else`
+
 ```ruby
 def create
   @quote = Quote.new(quote_params)
