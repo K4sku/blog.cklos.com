@@ -1,6 +1,7 @@
-// Minigra 2: rozsiane cyfry + miejsca docelowe. Dziecko przeciąga cyfry na właściwe pola.
+// Minigra: rozsiane cyfry + miejsca docelowe. Dziecko przeciąga cyfry na właściwe pola.
 const DragGame = (() => {
-  function start(root, target, { onBack, onWin } = {}) {
+  function start(root, target, opts = {}) {
+    const { onBack, onWin, fullHints = false } = opts;
     const digits = target.split('');
 
     root.innerHTML = '';
@@ -16,6 +17,13 @@ const DragGame = (() => {
       el.dataset.idx = i;
       el.dataset.digit = d;
       slotsEl.appendChild(el);
+      // Tryb pełnej podpowiedzi: cień widoczny od początku
+      if (fullHints) {
+        const ghost = document.createElement('div');
+        ghost.className = 'ghost-hint';
+        ghost.textContent = d;
+        el.appendChild(ghost);
+      }
       return { el, digit: d, filled: false };
     });
 
@@ -58,32 +66,48 @@ const DragGame = (() => {
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
       el.style.transform = `translate(${dx}px, ${dy}px)`;
+      // Podświetl slot pod kursorem; zielono jeśli pasuje, czerwono jeśli nie.
+      const myDigit = el.dataset.d;
       slots.forEach(s => {
-        s.el.classList.toggle('hover', !s.filled && isOver(s.el, e.clientX, e.clientY));
+        const over = !s.filled && isOver(s.el, e.clientX, e.clientY);
+        const matches = s.digit === myDigit;
+        s.el.classList.toggle('hover', over);
+        s.el.classList.toggle('hover-match', over && matches);
+        s.el.classList.toggle('hover-nomatch', over && !matches);
       });
     });
+
+    function clearHover() {
+      slots.forEach(s => {
+        s.el.classList.remove('hover', 'hover-match', 'hover-nomatch');
+      });
+    }
 
     function endDrag(e) {
       if (!dragging) return;
       dragging = false;
       el.classList.remove('dragging');
-      slots.forEach(s => s.el.classList.remove('hover'));
+      clearHover();
 
       const dropSlot = slots.find(s => !s.filled && isOver(s.el, e.clientX, e.clientY));
       if (!dropSlot) {
         // upuszczenie poza polem – cicho wraca
+        el.style.transition = 'transform 0.2s ease';
         el.style.transform = '';
+        setTimeout(() => { el.style.transition = ''; }, 220);
         return;
       }
       if (dropSlot.digit !== el.dataset.d) {
         // niewłaściwa cyfra – wraca, krzyżyk, dźwięk, podpowiedzi
+        el.style.transition = 'transform 0.2s ease';
         el.style.transform = '';
+        setTimeout(() => { el.style.transition = ''; }, 220);
         handleFail(el, slots);
         return;
       }
       placeInSlot(el, dropSlot);
       if (slots.every(s => s.filled)) {
-        setTimeout(() => Celebrate.show({ onDone: () => onWin && onWin() }), 150);
+        setTimeout(() => Celebrate.show({ onDone: () => onWin && onWin() }), 600);
       }
     }
 
@@ -91,23 +115,45 @@ const DragGame = (() => {
     el.addEventListener('pointercancel', endDrag);
   }
 
+  // Animacja: kafelek "leci" do środka slotu, zmniejsza się, a w slocie pojawia się cyfra.
   function placeInSlot(el, slot) {
     Sounds.snap();
+    Speech.sayDigit(slot.digit);
     slot.filled = true;
     slot.el.classList.add('filled');
-    const ghost = slot.el.querySelector('.ghost-hint');
-    if (ghost) ghost.remove();
-    const val = document.createElement('div');
-    val.className = 'slot-value';
-    val.textContent = slot.digit;
-    slot.el.appendChild(val);
-    // Kafelek znika z planszy – cyfrę widać już w slocie.
     el.dataset.placed = '1';
-    el.classList.add('removed');
+    el.style.zIndex = '40';
+
+    const slotRect = slot.el.getBoundingClientRect();
+    const pieceRect = el.getBoundingClientRect();
+    const dx = (slotRect.left + slotRect.width / 2) - (pieceRect.left + pieceRect.width / 2);
+    const dy = (slotRect.top + slotRect.height / 2) - (pieceRect.top + pieceRect.height / 2);
+
+    // Wyciągamy aktualne translate() z transformu (z drag) i dodajemy delta.
+    let curTX = 0, curTY = 0;
+    const m = (el.style.transform || '').match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+    if (m) { curTX = parseFloat(m[1]); curTY = parseFloat(m[2]); }
+    const targetScale = Math.min(1, (slotRect.width * 0.7) / Math.max(pieceRect.width, 1));
+
+    el.style.transition = 'transform 0.32s cubic-bezier(0.34, 1.36, 0.5, 1), opacity 0.18s ease 0.26s';
+    el.style.transform = `translate(${curTX + dx}px, ${curTY + dy}px) scale(${targetScale})`;
+    el.style.opacity = '0';
+
+    // Po animacji: w slocie pokazujemy cyfrę z animacją "pop".
+    setTimeout(() => {
+      const ghost = slot.el.querySelector('.ghost-hint');
+      if (ghost) ghost.remove();
+      const val = document.createElement('div');
+      val.className = 'slot-value';
+      val.textContent = slot.digit;
+      slot.el.appendChild(val);
+      el.classList.add('removed');
+    }, 320);
   }
 
   function handleFail(el, slots) {
     Sounds.fail();
+    Speech.say('Spróbuj jeszcze raz', { rate: 1.05 });
     flashCross();
 
     // Usuń jedną nadmiarową cyfrę
@@ -131,7 +177,7 @@ const DragGame = (() => {
 
   function layoutPieces(pool, pieces) {
     const w = Math.max(280, pool.clientWidth);
-    // Skaluj kafelki w zależności od dostępnej szerokości – na tablecie 90px, mniej na wąskim ekranie
+    // Skaluj kafelki w zależności od dostępnej szerokości – na tablecie 92px, mniej na wąskim ekranie
     const PIECE = w >= 640 ? 92 : w >= 460 ? 78 : 64;
     const GAP = 18;
     const PAD = 18;

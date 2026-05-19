@@ -1,10 +1,13 @@
-// Animacja nagrody: emoji spadające z góry + napis "Brawo!".
+// Animacja nagrody: emoji spadające z góry + napis "Brawo!" + duża maskotka.
 const Celebrate = (() => {
   const EMOJIS = ['🎉', '🌟', '⭐', '🎊', '✨', '🥳', '🎈', '💛', '💙', '❤️'];
   const BRAVOS = ['Brawo!', 'Super!', 'Tak!', 'Ekstra!', 'Hura!'];
+  const MASCOTS = ['🐶', '🐱', '🐼', '🦊', '🐯', '🦁', '🐵'];
 
   function show({ onDone } = {}) {
+    const bravo = BRAVOS[Math.floor(Math.random() * BRAVOS.length)];
     Sounds.success();
+    Speech.say(bravo, { rate: 1.05, pitch: 1.2 });
 
     const layer = document.createElement('div');
     layer.className = 'celebrate';
@@ -19,14 +22,19 @@ const Celebrate = (() => {
       const delay = Math.random() * 0.6;
       el.style.animationDuration = duration + 's';
       el.style.animationDelay = delay + 's';
-      el.style.fontSize = (28 + Math.random() * 32) + 'px';
+      el.style.fontSize = (28 + Math.random() * 36) + 'px';
       layer.appendChild(el);
     }
 
-    const bravo = document.createElement('div');
-    bravo.className = 'bravo';
-    bravo.textContent = BRAVOS[Math.floor(Math.random() * BRAVOS.length)];
-    layer.appendChild(bravo);
+    const bravoEl = document.createElement('div');
+    bravoEl.className = 'bravo';
+    bravoEl.textContent = bravo;
+    layer.appendChild(bravoEl);
+
+    const mascot = document.createElement('div');
+    mascot.className = 'celebrate-mascot';
+    mascot.textContent = MASCOTS[Math.floor(Math.random() * MASCOTS.length)];
+    layer.appendChild(mascot);
 
     document.body.appendChild(layer);
 
