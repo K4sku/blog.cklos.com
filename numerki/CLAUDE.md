@@ -9,7 +9,7 @@ Webowa gra w czystym JS ucząca dwóch chłopców (3 i 4 lata) numerów telefon�
 - Strona statyczna, **bez build-stepu, bez zależności, bez frameworka**.
 - Tekst UI i komentarze w kodzie po polsku.
 - UI dopasowane do tabletu ~9". Skaluje się w dół przez `clamp()` i responsywne stałe w JS.
-- Działa z `file://` oraz z dowolnego statycznego hostingu (np. GitHub Pages w podkatalogu Jekylla).
+- Działa z dowolnego statycznego hostingu (np. GitHub Pages w podkatalogu Jekylla). **Uwaga:** `gra.html` ma front matter Jekylla (wersjonowanie assetów dla Cloudflare cache-bustingu), więc bezpośrednie otwarcie przez `file://` pokazuje surowe Liquid tagi na górze i ładuje skrypty z `?v={{ asset_v }}` w URL. Do testów lokalnych użyj `bundle exec jekyll serve` z roota bloga albo otwórz `_site/numerki/gra.html` po buildzie.
 
 ## Struktura plików
 
@@ -171,20 +171,16 @@ Używany dla kart numerów (tap=gra, long-press=tryb zarządzania) i FAB (tap=hi
 
 ## Jak uruchomić
 
-- Otwórz `index.html` w przeglądarce (działa też `file://`).
-- Alternatywa: `python3 -m http.server` w katalogu i wejść na `http://localhost:8000`.
+- **Najlepiej**: `bundle exec jekyll serve` z roota bloga, potem `http://localhost:4000/numerki/gra.html`. Tylko ten tryb prawidłowo zrenderuje wersjonowanie `?v={{ asset_v }}`.
+- Alternatywa bez Jekylla: `python3 -m http.server` w katalogu `numerki/` — strona zadziała, ale na górze pojawią się surowe Liquid tagi i `?v={{ asset_v }}` w URLach (assety i tak się załadują, bo serwery ignorują query stringi przy plikach statycznych).
+- `file://` już nie działa czysto z powodu front matter w `gra.html`.
 - Sprawdzenie składni JS: `for f in js/*.js; do node --check "$f"; done`.
 
 ## Deploy
 
-- **W blogu Jekylla na GitHub Pages**: wrzucić folder jako `numerki/` do repo bloga. Pliki bez front matter są kopiowane "as is".
+- **W blogu Jekylla na GitHub Pages**: wrzucić folder jako `numerki/` do repo bloga. `gra.html` ma front matter (`layout: null`, `permalink: /numerki/gra.html`) — Jekyll przetwarza Liquid i serwuje pod tym samym URL. Reszta plików (JS/CSS) bez front matter jest kopiowana "as is".
+- **Cache-busting**: w `<head>` jest `{%- assign asset_v = site.github.build_revision | default: site.time | date: '%s' -%}`, a wszystkie `<script>`/`<link>` mają `?v={{ asset_v }}`. Każdy push generuje nowy build_revision → Cloudflare/przeglądarka zaciągają świeże assety bez ręcznego purge. Plus meta `Cache-Control: no-cache, no-store, must-revalidate` na samym HTML.
 - **Osobne repo z GitHub Pages**: Settings → Pages → branch `main` / root.
-- Jeśli motyw Jekylla próbuje opakować `index.html`, dodać na górze:
-  ```yaml
-  ---
-  layout: null
-  ---
-  ```
 
 ## Pułapki / już-naprawione rzeczy
 
