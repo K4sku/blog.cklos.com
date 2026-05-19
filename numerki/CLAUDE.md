@@ -26,6 +26,7 @@ js/
   drag-game.js    – DragGame: minigra "układanka"
   quiz-game.js    – QuizGame: "Wybierz właściwy numer" (3 rundy)
   whack-game.js   – WhackGame: bąbelki / whack-a-mole
+  maze-game.js    – MazeGame: labirynt (rysowanie linii palcem)
   app.js         – router, ekran startowy, wybór gry, ekran "po wygranej" (IIFE, startuje sam)
 ```
 
@@ -34,13 +35,13 @@ Kolejność skryptów w `index.html` ma znaczenie — `app.js` musi być ostatni
 ## Architektura
 
 - Brak frameworka, wszystko przez bezpośrednie DOM API.
-- Moduły jako IIFE pod globalnymi nazwami: `Storage`, `Sounds`, `Speech`, `Celebrate`, `PhoneGame`, `DragGame`, `QuizGame`, `WhackGame`.
+- Moduły jako IIFE pod globalnymi nazwami: `Storage`, `Sounds`, `Speech`, `Celebrate`, `PhoneGame`, `DragGame`, `QuizGame`, `WhackGame`, `MazeGame`.
 - Router (`app.js`) czyści `#app` i mount-uje widok. Każda `renderXxx` rysuje swój widok od zera (`renderHome`, `renderGamePicker`, `renderPhoneGame`, `renderDragGame`, `renderQuizGame`, `renderListenGame`, `renderWhackGame`, `renderAfterWin`).
 - Każda gra eksponuje to samo API:
   ```js
   GameName.start(rootEl, targetDigitsString, { onBack, onWin, fullHints, label, icon, ... })
   ```
-- `onWin` z gry prowadzi do `renderAfterWin(item, gameType)` — ekran z 3 przyciskami: jeszcze raz / inna gra / koniec. `GAME_RENDERERS` mapuje `gameType` na funkcję.
+- `onWin` z gry prowadzi do `renderAfterWin(item, gameType)` — ekran z 3 przyciskami: jeszcze raz / inna gra / koniec. `GAME_RENDERERS` mapuje `gameType` na funkcję. Typy gier: `phone`, `drag`, `quiz`, `listen`, `whack`, `maze`.
 - Wszystkie ścieżki w HTML są względne — działa z dowolnego subpath.
 
 ## Logika minigier
@@ -96,6 +97,20 @@ Styl wizualny: wanna widziana z lotu ptaka + zaparowane lustro nad nią jako pas
 - Wygrana po odgadnięciu wszystkich cyfr → `Celebrate.show` z opóźnieniem 1.1 s żeby animacja popu zdążyła się skończyć.
 - `inTransition = true` na czas popu+spawn, blokuje wielokrotne tapnięcia.
 - **`fullHints`**: niewytypowane komórki dostają `.hint` zamiast pełnego rozmycia – cyfra widoczna jako delikatny cień (blur 4 px). Po trafieniu `revealCell` zdejmuje `.hint` i `.next`, dodaje `.revealing` (chwilowy scale 1.15 + blur 0), po 700 ms `.revealed`. Dzięki transitionom przejście hint→revealed jest płynne, bez chwilowego pojawienia się mgły.
+
+### Labirynt (`maze-game.js`)
+
+- Plansza 11×13 (`COLS`/`ROWS`), generowana algorytmem **DFS perfect maze** przy każdym uruchomieniu. Gwarantuje dokładnie jedną ścieżkę między dowolnymi dwoma komórkami.
+- **Model ścian**: każda komórka to korytarz; ściany leżą na krawędziach. Dwie macierze: `hWalls[r][c]` (poziome, między (c,r-1) a (c,r); rozmiar `(rows+1) × cols`) i `vWalls[r][c]` (pionowe; rozmiar `rows × (cols+1)`). `isPassable(maze, fromC, fromR, toC, toR)` sprawdza out-of-bounds + brak odpowiedniej ściany. To zupełnie inny model niż "blokowe" gry — ważne przy zmianach.
+- **Start/meta**: środkowa kolumna `floor(COLS/2)`, wiersz `0` (start) i `ROWS-1` (meta). Strzałka rysowana na zewnątrz nad startem, kotek pod metą — `viewBox` rozszerzony o `CELL` z góry i z dołu (`-CELL` do `(ROWS+2)*CELL`). Wlot u góry i wylot u dołu wizualnie nie mają ściany (pomijane w `drawWalls`), ale `isPassable` blokuje wyjście poza siatkę.
+- **Cyfry**: `pickDigitCells(path, n)` rozkłada `n` cyfr równomiernie wzdłuż unikalnej ścieżki start→meta (pomija pierwszą i ostatnią komórkę). `findPath` to BFS — w perfect-maze zwraca jedyną drogę. Pozycje błędnych cyfr (`wrongCells`) to losowe dead-endy (`findDeadEnds`) **poza** główną ścieżką. Cyfry błędne losowane jako `0–9` niezależnie od targetu.
+- **Filtry generatora**: `MIN_PATH_LEN` / `MAX_PATH_LEN` (28–80) + min liczba dead-endów; do `GEN_RETRIES` (30) prób, potem fallback bierze ostatni wygenerowany.
+- **Rysowanie linii**: SVG `<polyline>` zielony, `stroke-width: 14`. Każdy `pointermove` woła `constrainMove(x0,y0,x1,y1)` — iteracyjny sweep, w którym ruch jest dzielony na segmenty na krawędziach komórek: przekraczamy krawędź jeśli `isPassable` lub clampujemy do ściany i kontynuujemy resztę wektora wzdłuż tej osi. Zwraca też `visited` — listę kolejno odwiedzonych komórek (potrzebne, bo szybki pointermove może przeskoczyć kilka komórek na raz).
+- **Checkpoint i błąd**: po każdej trafionej prawidłowej cyfrze zapisujemy `lastCheckpoint = { pointsLength, cell, revealedCount }`. Wjazd w komórkę `wrongCells` (tylko w trybie `fullHints=false`) → `handleError`: `Sounds.fail`, krzyż SVG (`mazeCrossPop`), `.shake` na svg, po 750 ms `linePoints.slice(0, pointsLength)` i powrót do checkpointu. Pointerdown blokowany przez `errorBlock` w trakcie animacji.
+- **Kontynuacja po podniesieniu palca**: kolejny `pointerdown` musi być w obrębie `POINTER_DOWN_TOL = CELL*0.75` od ostatniego punktu linii — inaczej ignorujemy (nie restartujemy od strzałki).
+- **`fullHints`**: ON = łatwy (wszystkie cyfry widoczne w pasku, brak błędnych cyfr na odnogach). OFF = trudny (cyfry odkrywane jedna po drugiej, błędne cyfry na dead-endach, błąd cofa linię).
+- **Pasek cyfr nad planszą** (`.maze-digits`): kropki `•` lub odkryta cyfra; klasa `.next` pulsuje na najbliższej do odkrycia (tylko w trybie hard).
+- **Skalowanie**: `viewBox = 0 -CELL COLS*CELL (ROWS+2)*CELL`. `aspect-ratio: 11/15` w CSS. `clientToSvg` zna offset (-CELL na y) — pamiętaj przy zmianie wymiarów.
 
 ## Mowa (`speech.js`)
 
@@ -159,8 +174,8 @@ Używany dla kart numerów (tap=gra, long-press=tryb zarządzania) i FAB (tap=hi
 ## Tryb "pełne podpowiedzi"
 
 - Toggle w ekranie wyboru gry (`.hint-toggle` z `<input type="checkbox">`). Zapisywany w settings pod kluczem `fullHints`.
-- Włączony: Telefon pokazuje wszystkie cienie od początku, Układanka ma cień w każdym slocie od startu.
-- Bąbelki / Quiz nie używają tego ustawienia (mają własną dynamikę).
+- Włączony: Telefon pokazuje wszystkie cienie od początku, Układanka ma cień w każdym slocie od startu, Labirynt pokazuje cały numer w pasku i nie ma błędnych cyfr na odnogach.
+- Bąbelki używają w trybie "hint" (cyfry-cień przez blur). Quiz nie używa.
 
 ## Konwencje
 
@@ -216,3 +231,4 @@ Zaimplementowane jako kolejny krok:
 - Zmiana w `app.js`: każdy `render*` zaczynaj od `clear()`; po nawigacji wołaj `Speech.cancel()` żeby stara wypowiedź się nie kończyła na nowym ekranie.
 - Zmiana w `whack-game.js`: pamiętaj `clearInterval(refreshTimer)` przy wygranej **i** powrocie. Inaczej zombie timer.
 - Zmiana w `quiz-game.js`: nie blokuj wszystkich przycisków po dobrej odpowiedzi — wystarczy lock samego wybranego (data-locked), inaczej szybkie podwójne kliknięcie psuje stan.
+- Zmiana w `maze-game.js`: jeśli zmieniasz `COLS`/`ROWS`/`CELL`, sprawdź `aspect-ratio` w CSS oraz `clientToSvg` (offset y = `-CELL`). Jeśli zmieniasz model ścian, pamiętaj że `constrainMove` używa `isPassable`, a nie sprawdzania "czy komórka jest korytarzem" — wszystkie komórki w siatce to korytarze.

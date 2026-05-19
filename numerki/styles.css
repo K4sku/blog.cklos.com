@@ -1039,3 +1039,132 @@ body {
 .modal-actions { display: flex; gap: 12px; margin-top: 6px; }
 .modal-actions .btn { flex: 1; min-height: 64px; font-size: 24px; }
 
+/* ===== Minigra: Labirynt ===== */
+.maze-wrap {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.maze-wrap .topbar {
+  justify-content: flex-start;
+  gap: 18px;
+}
+.maze-digits {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.85);
+  padding: 10px 16px;
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  font-family: "SF Mono", ui-monospace, "Roboto Mono", monospace;
+  min-height: 56px;
+  align-items: center;
+}
+.maze-bar-digit {
+  font-size: clamp(22px, 4vw, 32px);
+  font-weight: 800;
+  color: rgba(26, 35, 126, 0.22);
+  min-width: 22px;
+  text-align: center;
+  transition: color 0.25s ease, transform 0.25s ease;
+}
+.maze-bar-digit.shown { color: var(--text); }
+.maze-bar-digit.next {
+  color: var(--primary);
+  animation: mazeBarPulse 1.1s ease-in-out infinite;
+}
+@keyframes mazeBarPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+}
+
+.maze-board-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.maze-svg {
+  width: 100%;
+  max-width: min(92vw, 720px);
+  max-height: calc(100vh - 160px);
+  aspect-ratio: 11 / 15;
+  height: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  filter: drop-shadow(0 8px 22px rgba(30, 64, 175, 0.18));
+}
+.maze-svg.shake { animation: shake 0.45s ease; }
+
+.maze-board-bg {
+  fill: #ffffff;
+}
+.maze-wall {
+  stroke: #1a237e;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+.maze-cell-digit {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 38px;
+  font-weight: 800;
+  fill: rgba(26, 35, 126, 0.45);
+  pointer-events: none;
+}
+.maze-cell-digit.revealed {
+  fill: var(--text);
+}
+.maze-wrong-digit {
+  fill: rgba(26, 35, 126, 0.45);
+}
+.start-arrow {
+  font-size: 64px;
+  fill: var(--primary);
+  font-weight: 900;
+  pointer-events: none;
+  animation: mazeArrowBounce 1.4s ease-in-out infinite;
+}
+@keyframes mazeArrowBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+.end-cat {
+  font-size: 60px;
+  pointer-events: none;
+}
+.maze-line {
+  stroke: #22c55e;
+  stroke-width: 14;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 0 rgba(15, 95, 40, 0.25));
+}
+.cursor-dot {
+  fill: #16a34a;
+  stroke: #ffffff;
+  stroke-width: 3;
+  pointer-events: none;
+  animation: mazeCursorPulse 1.2s ease-in-out infinite;
+}
+@keyframes mazeCursorPulse {
+  0%, 100% { r: 11; opacity: 1; }
+  50% { r: 15; opacity: 0.7; }
+}
+.maze-wrong-cross {
+  font-size: 70px;
+  font-weight: 900;
+  fill: var(--danger);
+  pointer-events: none;
+  animation: mazeCrossPop 0.7s ease;
+}
+@keyframes mazeCrossPop {
+  0%   { opacity: 0; }
+  40%  { opacity: 1; }
+  100% { opacity: 1; }
+}
+

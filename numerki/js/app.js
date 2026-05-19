@@ -327,6 +327,7 @@
         ${gameCard('quiz', '🤔', 'Zgadnij', 'Wybierz właściwy numer')}
         ${gameCard('listen', '👂', 'Posłuchaj', 'Wpisz numer ze słuchu')}
         ${gameCard('whack', '🛁', 'Bąbelki', 'Wybierz bąbelek z cyfrą')}
+        ${gameCard('maze', '🌀', 'Labirynt', 'Narysuj drogę po cyfrach')}
       </div>
     `;
 
@@ -410,12 +411,22 @@
     });
   }
 
+  function renderMazeGame(item) {
+    clear();
+    MazeGame.start(root, item.number, {
+      ...gameOptions(),
+      onBack: () => renderGamePicker(item),
+      onWin: () => renderAfterWin(item, 'maze'),
+    });
+  }
+
   const GAME_RENDERERS = {
     phone: renderPhoneGame,
     drag: renderDragGame,
     quiz: renderQuizGame,
     listen: renderListenGame,
     whack: renderWhackGame,
+    maze: renderMazeGame,
   };
 
   function renderAfterWin(item, gameType) {
