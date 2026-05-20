@@ -8,7 +8,7 @@ const MazeGame = (() => {
   const CELL = 80;
   const LINE_WIDTH = 14;
   const POINT_MIN_DIST = 3;
-  const POINTER_DOWN_TOL = CELL * 0.75;
+  const POINTER_DOWN_TOL = CELL * 1.5;
   const WRONG_DIGITS_COUNT = 10;
   const MIN_PATH_LEN = 20;       // minimalna długość unikalnej ścieżki start→meta
   const MAX_PATH_LEN = 80;
@@ -187,11 +187,11 @@ const MazeGame = (() => {
       <div class="maze-board-wrap">
         <svg class="maze-svg" viewBox="${VB_X} ${VB_Y} ${VB_W} ${VB_H}" preserveAspectRatio="xMidYMid meet">
           <rect class="maze-board-bg" x="0" y="0" width="${VB_W}" height="${COLS && ROWS*CELL}" />
-          <g class="walls-layer"></g>
           <g class="digits-layer"></g>
           <text class="start-arrow" text-anchor="middle" dominant-baseline="middle"></text>
           <text class="end-cat" text-anchor="middle" dominant-baseline="middle"></text>
           <polyline class="maze-line" points="" fill="none" />
+          <g class="walls-layer"></g>
           <circle class="cursor-dot" r="11" />
           <g class="cross-layer"></g>
         </svg>
@@ -377,7 +377,18 @@ const MazeGame = (() => {
     }
 
     // ===== Pointer events =====
+    // getScreenCTM().inverse() poprawnie uwzględnia letterboxing przy preserveAspectRatio="meet".
+    // Bez tego (przy fallbacku na bounding rect) gdy max-height łamie aspect-ratio kontenera,
+    // punkt dotyku rozjeżdża się z rysowaną linią.
     function clientToSvg(e) {
+      const ctm = svg.getScreenCTM();
+      if (ctm) {
+        const pt = svg.createSVGPoint();
+        pt.x = e.clientX;
+        pt.y = e.clientY;
+        const p = pt.matrixTransform(ctm.inverse());
+        return { x: p.x, y: p.y };
+      }
       const rect = svg.getBoundingClientRect();
       return {
         x: VB_X + (e.clientX - rect.left) * (VB_W / rect.width),
