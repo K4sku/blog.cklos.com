@@ -1,0 +1,712 @@
+---
+layout: null
+permalink: /rails-new/
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#c52f21">
+  <title>rails new — command builder</title>
+  <meta name="description" content="Interactive builder for the `rails new` command. Toggle options, pick a Rails version, copy the result.">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <style>
+    :root {
+      --accent: #c52f21;
+      --accent-dark: #9e2317;
+      --bg: #f5f5f4;
+      --card: #ffffff;
+      --ink: #1c1917;
+      --muted: #78716c;
+      --line: #e7e5e4;
+      --term-bg: #1e2330;
+      --term-cmd: #ff7b72;
+      --term-app: #d2a8ff;
+      --term-flag: #7ee787;
+      --term-eq: #8b949e;
+      --term-val: #79c0ff;
+      --term-ver: #ffa657;
+      --radius: 14px;
+      --shadow: 0 1px 2px rgba(28,25,23,.06), 0 8px 24px rgba(28,25,23,.06);
+      --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+      --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 0 18px 80px; }
+
+    /* Header */
+    header.top {
+      padding: 30px 0 18px;
+    }
+    .backlink {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13px; color: var(--muted); text-decoration: none;
+      margin-bottom: 18px;
+    }
+    .backlink:hover { color: var(--accent); }
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 5vw, 40px);
+      letter-spacing: -.02em;
+      display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    }
+    h1 .mono { font-family: var(--mono); color: var(--accent); font-weight: 700; }
+    .lede { margin: 10px 0 0; color: var(--muted); font-size: 15px; max-width: 60ch; }
+
+    /* Sticky command bar */
+    .command-bar {
+      position: sticky; top: 0; z-index: 20;
+      padding: 14px 0;
+      background: linear-gradient(var(--bg) 70%, rgba(245,245,244,0));
+    }
+    .terminal {
+      background: var(--term-bg);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 30px rgba(15,18,28,.28);
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .terminal .titlebar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+    }
+    .dot { width: 11px; height: 11px; border-radius: 50%; }
+    .dot.r { background: #ff5f57; } .dot.y { background: #febc2e; } .dot.g { background: #28c840; }
+    .titlebar .label { margin-left: auto; color: #6b7280; font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    .terminal .body {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 16px 16px 18px;
+    }
+    .prompt { color: #59c36a; font: 700 14px/1.7 var(--mono); user-select: none; padding-top: 1px; }
+    code#cmd {
+      flex: 1;
+      font: 500 14.5px/1.7 var(--mono);
+      color: #e6edf3;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+    #cmd .cmd { color: var(--term-cmd); font-weight: 700; }
+    #cmd .app { color: var(--term-app); }
+    #cmd .flag { color: var(--term-flag); }
+    #cmd .eq { color: var(--term-eq); }
+    #cmd .val { color: var(--term-val); }
+    #cmd .ver { color: var(--term-ver); }
+    .copy-btn {
+      flex: none;
+      border: 0; cursor: pointer;
+      background: rgba(255,255,255,.08);
+      color: #e6edf3;
+      font: 600 13px/1 var(--sans);
+      padding: 9px 14px; border-radius: 9px;
+      display: inline-flex; align-items: center; gap: 7px;
+      transition: background .15s, transform .1s;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,.16); }
+    .copy-btn:active { transform: scale(.96); }
+    .copy-btn.ok { background: #1f7a3d; color: #fff; }
+    .copy-btn svg { width: 15px; height: 15px; }
+
+    /* Top controls */
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px;
+      margin: 8px 0 26px;
+    }
+    .ctrl {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: var(--radius); padding: 14px 16px;
+      box-shadow: var(--shadow);
+    }
+    .ctrl > label.h { display: block; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .ctrl input[type=text], .ctrl select {
+      width: 100%; font: 500 15px var(--mono);
+      padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px;
+      background: #fafaf9; color: var(--ink);
+    }
+    .ctrl input[type=text]:focus, .ctrl select:focus,
+    .opt select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+    .seg { display: flex; gap: 6px; flex-wrap: wrap; }
+    .seg label {
+      flex: 1; text-align: center; cursor: pointer;
+      padding: 8px 6px; border: 1px solid var(--line); border-radius: 9px;
+      font: 600 13px var(--sans); color: var(--muted); background: #fafaf9;
+      transition: .12s;
+    }
+    .seg input { position: absolute; opacity: 0; pointer-events: none; }
+    .seg input:checked + span { }
+    .seg label:has(input:checked) { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .seg label:has(input:disabled) { opacity: .4; cursor: not-allowed; }
+    .pinrow { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+    .pinrow label { font-size: 13px; color: var(--ink); display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+    .pinrow input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+    .patch-in { flex: 1; }
+    .patch-in:disabled { opacity: .45; }
+
+    /* Options groups */
+    .group { margin-bottom: 22px; }
+    .group > h2 {
+      font-size: 13px; font-weight: 700; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--accent-dark);
+      margin: 0 2px 12px; display: flex; align-items: center; gap: 8px;
+    }
+    .group > h2::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+    .opts {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 10px;
+    }
+    .opt {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 12px; padding: 12px 14px;
+      box-shadow: var(--shadow);
+      display: flex; flex-direction: column; gap: 4px;
+      transition: border-color .12s, box-shadow .12s;
+    }
+    label.opt { cursor: pointer; }
+    label.opt:hover { border-color: #d6d3d1; }
+    .opt .row { display: flex; align-items: center; gap: 10px; }
+    .opt .flagname { font: 600 13.5px var(--mono); color: var(--ink); }
+    .opt .desc { font-size: 12.5px; color: var(--muted); }
+    .opt.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--shadow); }
+    .opt.active .flagname { color: var(--accent-dark); }
+    .opt.disabled { opacity: .5; }
+    .opt .row { flex-wrap: wrap; }
+    .opt.implied { border-color: var(--accent); background: #fff6f4; cursor: default; }
+    .opt.implied .flagname { color: var(--accent-dark); }
+    .opt.implied .switch input:checked + .track { opacity: .8; }
+    .badge { margin-left: auto; flex: none; font: 700 10px/1 var(--sans); letter-spacing: .03em; text-transform: uppercase; color: var(--accent-dark); background: #fde6e1; border: 1px solid #f4cdc5; padding: 4px 7px; border-radius: 999px; white-space: nowrap; }
+    .implies { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 4px; }
+    .implies-lbl { font: 700 9.5px/1 var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .chip { font: 600 11px var(--mono); color: var(--accent-dark); background: #fbeae7; border: 1px solid #f3d3cc; padding: 2px 6px; border-radius: 6px; }
+
+    /* toggle switch */
+    .switch { flex: none; position: relative; width: 40px; height: 23px; }
+    .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+    .switch .track { position: absolute; inset: 0; background: #d6d3d1; border-radius: 999px; transition: .18s; }
+    .switch .track::before { content: ""; position: absolute; top: 2px; left: 2px; width: 19px; height: 19px; background: #fff; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: .18s; }
+    .switch input:checked + .track { background: var(--accent); }
+    .switch input:checked + .track::before { transform: translateX(17px); }
+    .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .opt.choice .row { justify-content: space-between; }
+    .opt.choice select {
+      flex: none; min-width: 130px; font: 600 13px var(--mono);
+      padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px;
+      background: #fafaf9; color: var(--ink); cursor: pointer;
+    }
+    .opt.choice select:disabled { opacity: .45; cursor: not-allowed; }
+
+    .presets { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 24px; }
+    .presets button {
+      border: 1px solid var(--line); background: var(--card); cursor: pointer;
+      font: 600 13px var(--sans); color: var(--ink);
+      padding: 8px 14px; border-radius: 999px; box-shadow: var(--shadow);
+      transition: .12s;
+    }
+    .presets button:hover { border-color: var(--accent); color: var(--accent); }
+    .presets button.reset { color: var(--muted); }
+
+    footer.foot { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+    footer.foot code { font-family: var(--mono); background: #ececeb; padding: 1px 5px; border-radius: 5px; }
+
+    @media (max-width: 560px) {
+      .terminal .body { flex-wrap: wrap; }
+      .copy-btn { width: 100%; justify-content: center; order: 3; }
+      code#cmd { flex-basis: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <a class="backlink" href="/">← blog.cklos.com</a>
+      <h1><span class="mono">rails new</span> builder</h1>
+      <p class="lede">Toggle the options you want, pick a Rails version, and copy the generated command. Available flags update to match the selected version.</p>
+    </header>
+
+    <div class="command-bar">
+      <div class="terminal">
+        <div class="titlebar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="label">your command</span>
+        </div>
+        <div class="body">
+          <span class="prompt">$</span>
+          <code id="cmd"></code>
+          <button class="copy-btn" id="copy" type="button" aria-label="Copy command">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span class="lbl">Copy</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="ctrl">
+        <label class="h" for="appname">App name / path</label>
+        <input type="text" id="appname" value="myapp" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="ctrl">
+        <label class="h" for="version">Rails version</label>
+        <select id="version"></select>
+        <div class="pinrow">
+          <label><input type="checkbox" id="pin"> pin</label>
+          <input type="text" class="patch-in" id="patch" spellcheck="false" autocomplete="off" disabled>
+        </div>
+      </div>
+      <div class="ctrl">
+        <label class="h">Rails source</label>
+        <div class="seg" id="source">
+          <label><input type="radio" name="source" value="released" checked><span>released</span></label>
+          <label><input type="radio" name="source" value="edge"><span>--edge</span></label>
+          <label><input type="radio" name="source" value="main"><span>--main</span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="presets" id="presets">
+      <button type="button" data-preset="default">Rails defaults</button>
+      <button type="button" data-preset="api">API only</button>
+      <button type="button" data-preset="minimal">Minimal</button>
+      <button type="button" data-preset="nofront">No front-end</button>
+      <button type="button" data-preset="reset" class="reset">Reset all</button>
+    </div>
+
+    <div id="grid"></div>
+
+    <footer class="foot">
+      Builds the command for <a href="https://guides.rubyonrails.org/command_line.html#rails-new" target="_blank" rel="noopener">Rails <code>rails new</code></a>.
+      Pinning emits <code>rails _x.y.z_ new …</code>. Available flags reflect each version per the official release notes — defaults
+      (<code>--database=sqlite3</code>, <code>--javascript=importmap</code>, propshaft/sprockets) are omitted from the command since they're applied automatically.
+    </footer>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    // version id "8.0" -> 800, "7.2" -> 702 (major*100 + minor)
+    function vnum(id) { var p = id.split("."); return (+p[0]) * 100 + (+p[1]); }
+
+    var VERSIONS = [
+      { id: "8.1", patch: "8.1.3" },
+      { id: "8.0", patch: "8.0.5" },
+      { id: "7.2", patch: "7.2.3.1" },
+      { id: "7.1", patch: "7.1.6" },
+      { id: "7.0", patch: "7.0.10" }
+    ];
+
+    // group display order + titles
+    var GROUPS = [
+      { id: "mode",   title: "Mode" },
+      { id: "db",     title: "Database" },
+      { id: "front",  title: "Front-end & assets" },
+      { id: "fw",     title: "Rails frameworks" },
+      { id: "infra",  title: "Infrastructure & deploy" },
+      { id: "test",   title: "Testing & code quality" },
+      { id: "other",  title: "Other" }
+    ];
+
+    // choice (dropdown) options
+    var CHOICES = {
+      database: {
+        flag: "--database", group: "db", label: "Database", def: "sqlite3",
+        desc: "Preconfigure for a database adapter.",
+        values: [
+          { v: "sqlite3" }, { v: "postgresql" }, { v: "mysql" },
+          { v: "trilogy", since: 701 },
+          { v: "mariadb-mysql", since: 800 }, { v: "mariadb-trilogy", since: 800 }
+        ],
+        disabledBy: "skip-active-record"
+      },
+      javascript: {
+        flag: "--javascript", group: "front", label: "JavaScript", def: "importmap",
+        desc: "Choose the JavaScript approach.",
+        values: [
+          { v: "importmap" }, { v: "esbuild" }, { v: "webpack" }, { v: "rollup" },
+          { v: "bun", since: 701 }
+        ],
+        disabledBy: "skip-javascript"
+      },
+      css: {
+        flag: "--css", group: "front", label: "CSS", def: "none",
+        desc: "Choose a CSS framework / processor.",
+        values: [
+          { v: "none", txt: "— none —" }, { v: "tailwind" }, { v: "bootstrap" },
+          { v: "bulma" }, { v: "postcss" }, { v: "sass" }
+        ]
+      },
+      "asset-pipeline": {
+        flag: "--asset-pipeline", group: "front", label: "Asset pipeline",
+        defFn: function (n) { return n >= 800 ? "propshaft" : "sprockets"; },
+        desc: "Library that serves bundled assets.",
+        values: [ { v: "propshaft" }, { v: "sprockets" }, { v: "none", since: 702 } ],
+        disabledBy: "skip-asset-pipeline"
+      }
+    };
+
+    // flag (toggle) options, in command-output order
+    var FLAGS = [
+      { id: "api",      g: "mode",  label: "API only",          desc: "Smaller stack for API-only apps." },
+      { id: "minimal",  g: "mode",  label: "Minimal",           desc: "Strip the app down to the essentials." },
+
+      { id: "skip-active-record", g: "db", label: "Skip Active Record", desc: "No database or ORM layer." },
+
+      { id: "skip-javascript",     g: "front", label: "Skip JavaScript",     desc: "No JavaScript files or bundler." },
+      { id: "skip-hotwire",        g: "front", label: "Skip Hotwire",        desc: "No Turbo + Stimulus." },
+      { id: "skip-jbuilder",       g: "front", label: "Skip Jbuilder",       desc: "No jbuilder gem." },
+      { id: "skip-asset-pipeline", g: "front", label: "Skip asset pipeline", desc: "No propshaft/sprockets." },
+
+      { id: "skip-action-mailer",  g: "fw", label: "Skip Action Mailer",  desc: "No mailers." },
+      { id: "skip-action-mailbox", g: "fw", label: "Skip Action Mailbox", desc: "No inbound email." },
+      { id: "skip-action-text",    g: "fw", label: "Skip Action Text",    desc: "No rich text." },
+      { id: "skip-active-job",     g: "fw", label: "Skip Active Job",     desc: "No background jobs." },
+      { id: "skip-active-storage", g: "fw", label: "Skip Active Storage", desc: "No file attachments." },
+      { id: "skip-action-cable",   g: "fw", label: "Skip Action Cable",   desc: "No WebSockets." },
+
+      { id: "skip-solid",        g: "infra", label: "Skip Solid",     desc: "No Solid Queue / Cache / Cable.",  since: 800 },
+      { id: "skip-kamal",        g: "infra", label: "Skip Kamal",     desc: "No Kamal deploy config.",          since: 800 },
+      { id: "skip-thruster",     g: "infra", label: "Skip Thruster",  desc: "No Thruster asset proxy.",         since: 800 },
+      { id: "skip-docker",       g: "infra", label: "Skip Docker",    desc: "No Dockerfile / entrypoint.",      since: 701 },
+      { id: "devcontainer",      g: "infra", label: "Add devcontainer", desc: "Generate .devcontainer files (off by default).", since: 702 },
+
+      { id: "skip-test",         g: "test", label: "Skip tests",        desc: "No test files." },
+      { id: "skip-system-test",  g: "test", label: "Skip system tests", desc: "No system (browser) tests." },
+      { id: "skip-rubocop",      g: "test", label: "Skip RuboCop",      desc: "No RuboCop omakase setup.",  since: 702 },
+      { id: "skip-brakeman",     g: "test", label: "Skip Brakeman",     desc: "No Brakeman security scan.", since: 702 },
+      { id: "skip-bundler-audit",g: "test", label: "Skip bundler-audit",desc: "No dependency audit setup.", since: 800 },
+      { id: "skip-ci",           g: "test", label: "Skip CI",           desc: "No GitHub Actions CI files.", since: 702 },
+
+      { id: "skip-git",            g: "other", label: "Skip git",            desc: "No git init / .gitignore." },
+      { id: "skip-keeps",          g: "other", label: "Skip .keep files",    desc: "No source-control .keep files." },
+      { id: "skip-bootsnap",       g: "other", label: "Skip Bootsnap",       desc: "No bootsnap gem." },
+      { id: "skip-dev-gems",       g: "other", label: "Skip dev gems",       desc: "No web-console etc.",          since: 701 },
+      { id: "skip-bundle",         g: "other", label: "Skip bundle install", desc: "Don't run bundle install." },
+      { id: "skip-decrypted-diffs",g: "other", label: "Skip decrypted diffs",desc: "Don't show decrypted credential diffs.", since: 701 },
+      { id: "skip-namespace",      g: "other", label: "Skip namespace",      desc: "For isolated engines only." },
+      { id: "skip-collision-check",g: "other", label: "Skip collision check",desc: "Skip the app-name collision check." }
+    ];
+
+    var FLAG_BY_ID = {};
+    FLAGS.forEach(function (f) { FLAG_BY_ID[f.id] = f; });
+
+    // Rails' OPTION_IMPLICATIONS (AppBase + AppGenerator merged). Turning a key
+    // on automatically turns on everything it implies — applied transitively by
+    // `imply_options`. `--skip-solid` is only implied (and only exists) on 8.0+.
+    function implicationMap(ver) {
+      return {
+        "skip-active-job":     ["skip-action-mailer", "skip-active-storage"],
+        "skip-active-record":  ver >= 800 ? ["skip-active-storage", "skip-solid"] : ["skip-active-storage"],
+        "skip-active-storage": ["skip-action-mailbox", "skip-action-text"],
+        "skip-javascript":     ["skip-hotwire"],
+        "skip-git":            ["skip-decrypted-diffs"],
+        "api":                 ["skip-asset-pipeline", "skip-javascript"],
+        "minimal":             ["skip-action-cable", "skip-action-mailbox", "skip-action-mailer", "skip-action-text",
+                                "skip-active-job", "skip-active-storage", "skip-bootsnap", "skip-dev-gems",
+                                "skip-hotwire", "skip-javascript", "skip-jbuilder", "skip-system-test"]
+      };
+    }
+
+    var DEFAULT_VERSION = "8.0";
+
+    var state = {
+      version: DEFAULT_VERSION,
+      appName: "myapp",
+      pin: false,
+      patch: "",
+      source: "released",
+      flags: {},                 // id -> bool
+      choices: {},               // key -> value
+      touched: {}                // key -> true once the user picks a choice
+    };
+
+    function n() { return vnum(state.version); }
+    function flagAvailable(f) { return !f.since || n() >= f.since; }
+    function choiceDef(key) {
+      var c = CHOICES[key];
+      return c.defFn ? c.defFn(n()) : c.def;
+    }
+    function choiceValues(key) {
+      return CHOICES[key].values.filter(function (o) { return !o.since || n() >= o.since; });
+    }
+    // Recomputed each render(). roots[id] = list of user-enabled options that
+    // force `id` on; byRoot[root] = everything that option pulls in transitively.
+    var IMPL = { roots: {}, byRoot: {} };
+    function computeImplications() {
+      var map = implicationMap(n()), roots = {}, byRoot = {};
+      Object.keys(state.flags).forEach(function (root) {
+        if (!state.flags[root]) return;
+        var rf = FLAG_BY_ID[root];
+        if (rf && !flagAvailable(rf)) return;   // root isn't a flag in this version
+        var seen = {}, stack = (map[root] || []).slice();
+        while (stack.length) {
+          var f = stack.pop();
+          if (seen[f]) continue;
+          seen[f] = true;
+          (map[f] || []).forEach(function (x) { stack.push(x); });
+        }
+        var list = Object.keys(seen);
+        byRoot[root] = list;
+        list.forEach(function (f) { (roots[f] = roots[f] || []).push(root); });
+      });
+      IMPL = { roots: roots, byRoot: byRoot };
+    }
+    function forcedOn(id) { return !!(IMPL.roots[id] && IMPL.roots[id].length); }
+    function effectiveOn(id) { return !!state.flags[id] || forcedOn(id); }
+    function viaLabel(id) { return IMPL.roots[id].map(function (r) { return "--" + r; }).join(", "); }
+    function isDisabled(key) {
+      var c = CHOICES[key];
+      return c.disabledBy && effectiveOn(c.disabledBy);
+    }
+
+    // ---- command assembly ----------------------------------------------------
+    function buildTokens() {
+      var t = [];
+      t.push({ c: "cmd", s: "rails" });
+      if (state.pin && state.source === "released") {
+        var p = (state.patch || "").trim() || currentPatch();
+        t.push({ c: "ver", s: "_" + p + "_" });
+      }
+      t.push({ c: "cmd", s: "new" });
+      t.push({ c: "app", s: (state.appName || "").trim() || "myapp" });
+
+      // walk groups in display order; within a group emit choices then flags
+      GROUPS.forEach(function (grp) {
+        // choices that live in this group
+        Object.keys(CHOICES).forEach(function (key) {
+          var c = CHOICES[key];
+          if (c.group !== grp.id) return;
+          if (isDisabled(key)) return;
+          var val = state.choices[key];
+          var dflt = choiceDef(key);
+          if (val == null || val === dflt || val === "none") return;
+          t.push({ c: "flag", s: c.flag, eq: val });
+        });
+        // flags in this group
+        FLAGS.forEach(function (f) {
+          if (f.g !== grp.id || !flagAvailable(f)) return;
+          // implied flags are applied by Rails automatically — keep them out of the command
+          if (!state.flags[f.id] || forcedOn(f.id)) return;
+          t.push({ c: "flag", s: "--" + f.id });
+        });
+      });
+
+      if (state.source === "edge") t.push({ c: "flag", s: "--edge" });
+      else if (state.source === "main") t.push({ c: "flag", s: "--main" });
+
+      return t;
+    }
+
+    function tokensToText(t) {
+      return t.map(function (x) { return x.eq != null ? x.s + "=" + x.eq : x.s; }).join(" ");
+    }
+    function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+    function tokensToHtml(t) {
+      return t.map(function (x) {
+        if (x.eq != null) {
+          return '<span class="flag">' + esc(x.s) + '</span><span class="eq">=</span><span class="val">' + esc(x.eq) + "</span>";
+        }
+        return '<span class="' + x.c + '">' + esc(x.s) + "</span>";
+      }).join(" ");
+    }
+
+    function currentPatch() {
+      var v = VERSIONS.filter(function (o) { return o.id === state.version; })[0];
+      return v ? v.patch : state.version + ".0";
+    }
+
+    // ---- rendering -----------------------------------------------------------
+    var gridEl = document.getElementById("grid");
+    var cmdEl = document.getElementById("cmd");
+
+    function render() {
+      computeImplications();
+
+      // Keep choices sensible for the current version:
+      //  - untouched choices always follow the version default
+      //  - a touched choice that isn't valid here falls back to the default
+      Object.keys(CHOICES).forEach(function (key) {
+        var allowed = choiceValues(key).map(function (o) { return o.v; });
+        if (!state.touched[key]) {
+          state.choices[key] = choiceDef(key);
+        } else if (allowed.indexOf(state.choices[key]) === -1) {
+          state.choices[key] = choiceDef(key);
+          state.touched[key] = false;
+        }
+      });
+
+      var html = "";
+      GROUPS.forEach(function (grp) {
+        var items = "";
+
+        // choice dropdowns first
+        Object.keys(CHOICES).forEach(function (key) {
+          var c = CHOICES[key];
+          if (c.group !== grp.id) return;
+          var disabled = isDisabled(key);
+          var opts = choiceValues(key).map(function (o) {
+            var sel = state.choices[key] === o.v ? " selected" : "";
+            var label = o.txt || o.v;
+            if (o.v === choiceDef(key) && o.v !== "none") label += " (default)";
+            return '<option value="' + o.v + '"' + sel + ">" + label + "</option>";
+          }).join("");
+          items +=
+            '<div class="opt choice' + (disabled ? " disabled" : "") + '">' +
+              '<div class="row">' +
+                '<span class="flagname">' + c.label + "</span>" +
+                '<select data-choice="' + key + '"' + (disabled ? " disabled" : "") + ">" + opts + "</select>" +
+              "</div>" +
+              '<span class="desc">' + c.desc + (disabled ? " · off (" + (state.flags[c.disabledBy] ? "--" + c.disabledBy : "via " + viaLabel(c.disabledBy)) + ")" : "") + "</span>" +
+            "</div>";
+        });
+
+        // toggle flags
+        FLAGS.forEach(function (f) {
+          if (f.g !== grp.id || !flagAvailable(f)) return;
+          var forced = forcedOn(f.id);
+          var on = forced || !!state.flags[f.id];
+          var badge = forced
+            ? '<span class="badge" title="enabled automatically by ' + viaLabel(f.id) + '">via ' + viaLabel(f.id) + "</span>"
+            : "";
+          var chips = "";
+          if (state.flags[f.id] && IMPL.byRoot[f.id]) {
+            var avail = IMPL.byRoot[f.id].filter(function (id) { return FLAG_BY_ID[id] && flagAvailable(FLAG_BY_ID[id]); });
+            if (avail.length) {
+              chips = '<div class="implies"><span class="implies-lbl">also turns on</span>' +
+                avail.map(function (id) { return '<span class="chip">--' + id + "</span>"; }).join("") + "</div>";
+            }
+          }
+          items +=
+            '<label class="opt' + (forced ? " implied" : (on ? " active" : "")) + '">' +
+              '<div class="row">' +
+                '<span class="switch">' +
+                  '<input type="checkbox" data-flag="' + f.id + '"' + (on ? " checked" : "") + (forced ? " disabled" : "") + ">" +
+                  '<span class="track"></span>' +
+                "</span>" +
+                '<span class="flagname">--' + f.id + "</span>" +
+                badge +
+              "</div>" +
+              '<span class="desc">' + f.desc + "</span>" +
+              chips +
+            "</label>";
+        });
+
+        if (items) html += '<section class="group"><h2>' + grp.title + "</h2><div class=\"opts\">" + items + "</div></section>";
+      });
+      gridEl.innerHTML = html;
+
+      var tokens = buildTokens();
+      cmdEl.innerHTML = tokensToHtml(tokens);
+      cmdEl.dataset.text = tokensToText(tokens);
+    }
+
+    // ---- events --------------------------------------------------------------
+    gridEl.addEventListener("change", function (e) {
+      var t = e.target;
+      if (t.dataset.flag) { state.flags[t.dataset.flag] = t.checked; render(); }
+      else if (t.dataset.choice) { state.choices[t.dataset.choice] = t.value; state.touched[t.dataset.choice] = true; render(); }
+    });
+
+    var appInput = document.getElementById("appname");
+    appInput.value = state.appName;
+    appInput.addEventListener("input", function () { state.appName = appInput.value; render(); });
+
+    var versionSel = document.getElementById("version");
+    VERSIONS.forEach(function (v) {
+      var o = document.createElement("option");
+      o.value = v.id; o.textContent = "Rails " + v.id;
+      if (v.id === DEFAULT_VERSION) o.selected = true;
+      versionSel.appendChild(o);
+    });
+    var patchInput = document.getElementById("patch");
+    patchInput.value = currentPatch();
+    versionSel.addEventListener("change", function () {
+      state.version = versionSel.value;
+      state.patch = currentPatch();
+      patchInput.value = state.patch;
+      render();
+    });
+    patchInput.addEventListener("input", function () { state.patch = patchInput.value; render(); });
+
+    var pin = document.getElementById("pin");
+    pin.addEventListener("change", function () {
+      state.pin = pin.checked;
+      patchInput.disabled = !pin.checked || state.source !== "released";
+      render();
+    });
+
+    document.getElementById("source").addEventListener("change", function (e) {
+      state.source = e.target.value;
+      var released = state.source === "released";
+      // edge/main can't be pinned
+      pin.disabled = !released;
+      patchInput.disabled = !state.pin || !released;
+      render();
+    });
+
+    // presets
+    var PRESETS = {
+      "default": function () { state.flags = {}; resetChoices(); },
+      "reset":   function () { state.flags = {}; resetChoices(); },
+      "api":     function () { state.flags = {}; resetChoices(); state.flags["api"] = true; },
+      "minimal": function () { state.flags = {}; resetChoices(); state.flags["minimal"] = true; },
+      "nofront": function () {
+        state.flags = {}; resetChoices();
+        ["skip-javascript", "skip-hotwire", "skip-asset-pipeline", "skip-jbuilder", "skip-action-cable", "skip-action-text"].forEach(function (id) { state.flags[id] = true; });
+      }
+    };
+    function resetChoices() {
+      state.touched = {};
+      Object.keys(CHOICES).forEach(function (key) { state.choices[key] = choiceDef(key); });
+    }
+    document.getElementById("presets").addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-preset]");
+      if (!b) return;
+      (PRESETS[b.dataset.preset] || function () {})();
+      render();
+    });
+
+    // copy
+    var copyBtn = document.getElementById("copy");
+    var copyLbl = copyBtn.querySelector(".lbl");
+    var copyTimer;
+    copyBtn.addEventListener("click", function () {
+      var text = cmdEl.dataset.text || "";
+      var done = function () {
+        copyBtn.classList.add("ok"); copyLbl.textContent = "Copied!";
+        clearTimeout(copyTimer);
+        copyTimer = setTimeout(function () { copyBtn.classList.remove("ok"); copyLbl.textContent = "Copy"; }, 1600);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fallback);
+      } else { fallback(); }
+      function fallback() {
+        var ta = document.createElement("textarea");
+        ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand("copy"); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+
+    // init
+    resetChoices();
+    render();
+  })();
+  </script>
+</body>
+</html>
