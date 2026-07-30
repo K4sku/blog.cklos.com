@@ -1,8 +1,6 @@
 links:
   - url: 'https://www.composerize.com/'
     description: 'Say goodbye to sprawling docker commands and say hello to "docker-compose up" :)'
-  - url: 'https://github.com/Unleash/unleash'
-    description: 'Unleash is a open source feature flag & toggle system, that gives you a great overview over all feature toggles across all your applications and services.'
   - url: 'https://microbadger.com/'
     description: 'Inspect and see what is inside any public docker image.'
   - url: 'https://www.autodraw.com/'

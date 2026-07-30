@@ -10,6 +10,7 @@ github_username:  k4sku
 permalink: /:year/:title/
 
 show_excerpts: true
+future: true
 theme: minima
 minima:
   date_format: "%Y-%m-%d"
@@ -25,4 +26,4 @@ exclude:
   - Gemfile
   - Rakefile
   - Gemfile.lock
-
+  - numerki/CLAUDE.md
